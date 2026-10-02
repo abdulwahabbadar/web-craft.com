@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow"><title>Mera Khata</title>
+<style>
+:root{--paper:#F3E9D6;--ink:#2B1B12;--soft:#5B4636;--red:#8B2635;--green:#3F6F52;--line:rgba(184,134,62,.35)}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,sans-serif;padding:18px 14px 40px}
+.wrap{max-width:480px;margin:0 auto}.card{background:#fff8ea;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 2px 8px rgba(43,27,18,.15);margin-bottom:14px}
+h1{margin:0;font-size:22px;color:var(--red)}.sub{font-size:12px;color:var(--soft);margin-top:3px}
+.bal{font-size:30px;font-weight:800;margin-top:10px}.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.row small{display:block;color:var(--soft);font-size:11px}.p{color:var(--green)}.i{color:var(--red)}.ro{font-size:11px;color:var(--soft);text-align:center;margin-top:10px}
+</style></head><body><div class="wrap" id="app"><div class="card">Load ho raha hai...</div></div>
+<script src="config.js"></script>
+<script>
+(function(){
+const app=document.getElementById('app'),t=location.hash.slice(1).replace(/[^a-f0-9]/g,''),CK='kh_view_'+t;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rs=n=>'Rs '+Math.round(n).toLocaleString('en-US'),dt=ms=>new Date(ms).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+function draw(d,note){
+  const e=(d.entries||[]).slice().sort((a,b)=>b.t-a.t);
+  app.innerHTML=`<div class="card"><h1>${esc(d.shop||'Khata')}</h1><div class="sub">${esc(d.name)} ka hisab</div>
+  <div class="bal" style="color:${d.balance>0?'var(--red)':'var(--green)'}">${rs(d.balance)}</div><div class="sub">${d.balance>0?'Baqaya (udhaar)':'Hisab saaf'}</div></div>
+  <div class="card">${e.length?e.map(x=>x.k==='i'?`<div class="row"><div>${esc(x.n)}<small>${dt(x.t)} • ${esc(x.q)} × ${rs(x.r)}</small></div><b class="i">${rs(x.a)}</b></div>`:`<div class="row"><div>Payment mili<small>${dt(x.t)}</small></div><b class="p">− ${rs(x.a)}</b></div>`).join(''):'Abhi koi entry nahi.'}</div>
+  <div class="ro">🔒 Sirf dekhne ke liye. ${note||''}</div>`;
+}
+if(t.length<32){app.innerHTML='<div class="card">Ye link sahi nahi hai.</div>';return;}
+const C=window.KHATA_CFG,h={'apikey':C.KEY,'Content-Type':'application/json'};if(C.KEY.startsWith('eyJ'))h.Authorization='Bearer '+C.KEY;
+fetch(C.URL+'/rest/v1/rpc/get_shared',{method:'POST',headers:h,body:JSON.stringify({p_token:t})})
+.then(r=>r.json()).then(d=>{
+  if(!d||!d.name){app.innerHTML='<div class="card">Ye khata nahi mila ya link band ho gaya hai.</div>';return;}
+  try{localStorage.setItem(CK,JSON.stringify(d))}catch(e){}draw(d,'Aakhri update: '+dt(d.updated));
+}).catch(()=>{
+  const c=localStorage.getItem(CK);
+  if(c)draw(JSON.parse(c),'(Offline: purana data)');else app.innerHTML='<div class="card">Internet chahiye.</div>';
+});
+})();
+</script></body></html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow"><title>My Khata — Admin</title>
+<style>
+:root{--paper:#F3E9D6;--ink:#2B1B12;--soft:#5B4636;--red:#8B2635;--green:#3F6F52;--blue:#3A5A8C;--line:rgba(184,134,62,.35)}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,system-ui,sans-serif;padding:16px}
+.wrap{max-width:720px;margin:0 auto}.card{background:#fff8ea;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+h1{margin:0 0 10px;font-size:22px;color:var(--red)}input{width:100%;padding:11px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;font:inherit}
+button{border:0;border-radius:8px;padding:9px 12px;font:inherit;font-weight:700;color:#fff;background:var(--red);cursor:pointer}button.b{background:var(--blue)}button.g{background:transparent;color:var(--soft);border:1px solid var(--line)}
+.u{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}.u small{color:var(--soft);display:block}
+.tag{font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;background:rgba(63,111,82,.15);color:var(--green)}.tag.x{background:rgba(139,38,53,.12);color:var(--red)}
+#m{color:var(--red);font-size:13px;font-weight:700;min-height:18px}[hidden]{display:none!important}
+</style></head><body><div class="wrap">
+<div class="card" id="login"><h1>🔐 Admin Login</h1>
+<input id="e" type="email" placeholder="Admin username"><input id="p" type="password" placeholder="Password"><div id="m"></div><button id="go" style="width:100%">Login</button></div>
+<div id="panel" hidden><div class="card"><div class="u"><h1 style="margin:0">Users</h1><button class="g" id="out">Sign out</button></div>
+<input id="q" placeholder="Email ya shop name se dhundein" style="margin-top:10px"><div id="cnt" style="font-size:12px;color:var(--soft)"></div></div><div id="list"></div></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+const sb=supabase.createClient(KHATA_CFG.URL,KHATA_CFG.KEY,{auth:{storageKey:'sb-khata-admin'}}),$=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let users=[];
+async function enter(){
+  const {data:{user}}=await sb.auth.getUser(); if(!user)return;
+  const r=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle();
+  if(!r.data||!r.data.is_admin){await sb.auth.signOut();$('m').textContent='Ye account admin nahi hai.';return;}
+  $('login').hidden=true;$('panel').hidden=false;load();
+}
+async function load(){
+  const r=await sb.from('profiles').select('*').order('created_at',{ascending:false}); if(r.error){alert(r.error.message);return;}
+  users=r.data;draw();
+}
+function draw(){
+  const q=$('q').value.toLowerCase(),now=Date.now();
+  const l=users.filter(u=>((u.email||'')+' '+(u.shop_name||'')).toLowerCase().includes(q));
+  $('cnt').textContent=l.length+' users';
+  $('list').innerHTML=l.map(u=>{const ex=u.plan_expires_at?new Date(u.plan_expires_at).getTime():0,on=ex>now;
+    return `<div class="card"><div class="u"><div><b>${esc(u.email)}</b><small>${esc(u.shop_name||'-')} • ${u.customer_count||0} customers</small>
+    <small>${on?'Expiry: '+new Date(ex).toLocaleDateString('en-GB'):'Free plan'}</small></div><span class="tag ${on?'':'x'}">${on?esc(u.plan).toUpperCase():'FREE'}</span></div>
+    <div class="u" style="margin-top:10px"><button class="b" data-i="${u.id}" data-p="monthly">+30 din (Rs 24)</button><button class="b" data-i="${u.id}" data-p="yearly">+365 din (Rs 159)</button><button class="g" data-i="${u.id}" data-p="none">Band karein</button></div></div>`}).join('');
+}
+$('list').onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+  if(!confirm('Pakka? '+b.textContent))return;
+  const r=await sb.rpc('admin_set_plan',{p_uid:b.dataset.i,p_plan:b.dataset.p});
+  if(r.error)alert(r.error.message);else load();};
+$('q').oninput=draw;
+$('go').onclick=async()=>{const r=await sb.auth.signInWithPassword({email:$('e').value.trim().toLowerCase()+'@khata.app',password:$('p').value});
+  if(r.error){$('m').textContent=r.error.message;return;}enter();};
+$('out').onclick=async()=>{await sb.auth.signOut();location.reload();};
+enter();
+})();
+</script></body></html>
